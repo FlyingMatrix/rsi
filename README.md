@@ -1,2 +1,2 @@
-# rsi
-Agent for Recursive Self-Improvement (RSI)
+# Recursive Self-Improvement (RSI)
+Agent for Recursive Self-Improvement (RSI).
