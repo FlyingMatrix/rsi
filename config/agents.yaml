@@ -1,0 +1,36 @@
+agents:
+  coder:
+    role: "Software Developer AI"
+    goal: "Write clean, functional Python code."
+    backstory: "An expert developer proficient in writing efficient Python code."
+    llm: "ollama/llama3"
+  tester:
+    role: "QA Tester AI"
+    goal: "Test the code thoroughly and report any errors."
+    backstory: "A meticulous quality assurance engineer."
+    llm: "ollama/llama3"
+    tools: ["python"]
+  reviewer:
+    role: "Code Reviewer AI"
+    goal: "Review code and test results to suggest improvements."
+    backstory: "A senior architect who ensures code quality."
+    llm: "ollama/llama3"
+flows:
+  - name: "CodeOptimizationFlow"
+    steps:
+      - agent: coder
+        prompt: |
+          You are {role}. Write Python code to solve the following task:
+          {task_description}
+      - agent: tester
+        prompt: |
+          You are {role}. Test the given code with appropriate cases and report any failures or errors.
+      - agent: reviewer
+        prompt: |
+          You are {role}. Review the code and test results. If improvements can be made or bugs exist, provide feedback.
+      - agent: coder
+        prompt: |
+          You are {role}. Improve the code based on the following feedback:
+          {reviewer_feedback}
+        condition: "{{ reviewer_feedback | contains('Suggest') or reviewer_feedback | contains('failed') }}"
+
