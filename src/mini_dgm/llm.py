@@ -4,14 +4,14 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-from openai import OpenAI
+import httpx                           # we need to talk to Ollama's native API directly to toggle reasoning
 
 
 @dataclass
 class LLMConfig:
     """All knobs in one place — later this gets populated from config.yaml."""
     model: str = "qwen3:8b"
-    base_url: str = "http://localhost:11434/v1"
+    host: str = "http://localhost:11434"
     api_key: str = "ollama"            # dummy; Ollama ignores it
     temperature: float = 0.2           # low = more deterministic (good for code)
     max_tokens: int | None = None      # None: without upper limitation
@@ -42,11 +42,11 @@ def _clean(text: str) -> str:
 
 
 class LLMClient:
-    """Thin, provider-agnostic wrapper. Swap the backend by changing config, not callers."""
+    """Provider-agnostic wrapper. Backed by Ollama's native /api/chat, because the OpenAI-compatible /v1 layer cannot toggle Qwen3's thinking."""
 
     def __init__(self, config: LLMConfig | None = None) -> None:
         self.config = config or LLMConfig()
-        self._client = OpenAI(base_url=self.config.base_url, api_key=self.config.api_key)
+        self._http = httpx.Client(base_url=self.config.host, timeout=self.config.timeout)
 
     def chat(
         self,
@@ -59,38 +59,36 @@ class LLMClient:
         cfg = self.config
         use_think = cfg.think if think is None else think
 
-        msgs = [dict(m) for m in messages]          # copy so we never mutate the caller's list
-        if not use_think:
-            msgs = self._disable_thinking(msgs)
+        # Native API puts sampling params under "options"; "think" is top-level.
+        options: dict[str, Any] = {
+            "temperature": cfg.temperature if temperature is None else temperature,
+            "num_predict": cfg.max_tokens if max_tokens is None else max_tokens     # Ollama's name for max output tokens
+        }
 
-        resp = self._client.chat.completions.create(
-            model=cfg.model,
-            messages=msgs,
-            temperature=cfg.temperature if temperature is None else temperature,
-            max_tokens=cfg.max_tokens if max_tokens is None else max_tokens,
-            timeout=cfg.timeout,
-        )
+        payload = {
+            "model": cfg.model,
+            "messages": list(messages),
+            "stream": False,
+            "think": use_think,
+            "options": options
+        }
 
-        msg = resp.choices[0].message
-        usage = resp.usage                          # tracks token consumption for that specific request (prompt_tokens, completion_tokens, etc.)
+        resp = self._http.post("/api/chat", json=payload)
+        resp.raise_for_status()
+        data = resp.json()
+
+        msg = data.get("message", {})
+        # These counts can be absent (e.g. when the prompt is fully cached) -> default 0.
+        prompt_tokens = data.get("prompt_eval_count", 0)
+        completion_tokens = data.get("eval_count", 0)
 
         return LLMResponse(
-            text=_clean(msg.content or ""),
-            reasoning=getattr(msg, "reasoning", None),   # non-standard field; may be absent
-            prompt_tokens=usage.prompt_tokens,
-            completion_tokens=usage.completion_tokens,
-            total_tokens=usage.total_tokens,
-            model=resp.model,
-            raw=resp
+            text=_clean(msg.get("content", "")),
+            reasoning=(msg.get("thinking") or None),   # native puts chain-of-thought in message.thinking
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=prompt_tokens + completion_tokens,
+            model=data.get("model", cfg.model),
+            raw=data
         )
-
-    @staticmethod
-    def _disable_thinking(messages: list[dict]) -> list[dict]:
-        """Qwen3 soft-switch: appending '/no_think' to the last user turn skips reasoning."""
-        for m in reversed(messages):
-            if m.get("role") == "user":
-                m["content"] = (str(m["content"]).rstrip() + " /no_think").strip()
-                return messages
-        messages.append({"role": "user", "content": "/no_think"})
-        return messages
 

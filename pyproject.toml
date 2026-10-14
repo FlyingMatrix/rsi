@@ -1,5 +1,5 @@
 [project]
-name = "mini-dgm"
+name = "mini_dgm"
 version = "0.0.1"
 requires-python = ">=3.11"
 dependencies = ["openai>=1.0", "pyyaml"]
