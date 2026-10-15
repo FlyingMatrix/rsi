@@ -1,0 +1,5 @@
+id: rle_encode
+entry_point: encode
+difficulty: easy
+timeout_s: 5
+tags: [strings]
