@@ -28,7 +28,7 @@ class Kata:
             "id": self.id,
             "spec": self.spec,
             "entry_point": self.entry_point,
-            "public_tests": self.public_tests,
+            "public_tests": self.public_tests
         }
 
 
