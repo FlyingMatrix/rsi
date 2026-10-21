@@ -47,6 +47,11 @@ def run_tests(
     memory: str = "256m",                   # The memory (RAM) limit assigned to the Docker container
     cpus: str = "1.0"                       # The CPU resource limit assigned to the container (equivalent to 1 full CPU core)
 ) -> SandboxResult:
+
+    """
+        run_tests is a coordinator, not a tester. It arranges files on disk, launches Docker, and reads back a report. 
+        The real test execution is pytest, running inside the cage.
+    """
     
     work = Path(tempfile.mkdtemp(prefix="minidgm_"))
     (work / "solution.py").write_text(solution_code, encoding="utf-8")
