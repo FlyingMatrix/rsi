@@ -47,15 +47,28 @@ def run_tests(
     memory: str = "256m",                   # The memory (RAM) limit assigned to the Docker container
     cpus: str = "1.0"                       # The CPU resource limit assigned to the container (equivalent to 1 full CPU core)
 ) -> SandboxResult:
-
     """
         run_tests is a coordinator, not a tester. It arranges files on disk, launches Docker, and reads back a report. 
         The real test execution is pytest, running inside the cage.
+
+        A data flow of run_tests():
+
+            solution_code ─┐
+                           ├─► written as two files ─► pytest (in Docker) runs test_suite.py
+            test_code ─────┘                                │  which does `from solution import encode`
+                                                            │  and calls encode(...) in each test
+                                                            ▼
+                                                        report.xml ─► _parse_junit ─► SandboxResult(passed/total)
     """
     
     work = Path(tempfile.mkdtemp(prefix="minidgm_"))
     (work / "solution.py").write_text(solution_code, encoding="utf-8")
     (work / "test_suite.py").write_text(test_code, encoding="utf-8")
+    """
+        work/
+        ├── solution.py       # def encode(s): ...        (from solution_code)
+        └── test_suite.py     # from solution import encode; def test_...  (from test_code)
+    """
 
     name = f"minidgm-{uuid.uuid4().hex[:12]}"
     mount_src = work.as_posix()                     # forward slashes: converts to a forward-slash format to ensure that Docker and volume-mounting commands can read the path cleanly
@@ -104,6 +117,7 @@ def run_tests(
         status = "error"
 
     # recursively deletes an entire folder, including all files and subfolders inside it
+    print(work)
     shutil.rmtree(work, ignore_errors=True)
 
     return SandboxResult(
