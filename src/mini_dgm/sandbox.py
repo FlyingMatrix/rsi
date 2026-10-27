@@ -117,7 +117,6 @@ def run_tests(
         status = "error"
 
     # recursively deletes an entire folder, including all files and subfolders inside it
-    print(work)
     shutil.rmtree(work, ignore_errors=True)
 
     return SandboxResult(
