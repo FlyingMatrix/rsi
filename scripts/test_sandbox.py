@@ -41,3 +41,37 @@ for f in r.failures:
 print("INFINITE vs PUBLIC tests (expect timeout):")
 r = run_tests(INFINITE, kata.public_tests, timeout_s=3)
 print(f"  status={r.status}  score={r.passed}/{r.total}  {r.duration_s:.1f}s")
+
+"""
+    > Output of running "python scripts\test_sandbox.py":
+
+        GOOD vs HIDDEN tests:
+        ..\AppData\Local\Temp\minidgm_vjcbxvm5
+        status=completed  score=5/5 (100%)  4.3s
+        
+        HARDCODED vs HIDDEN tests:
+        ..\AppData\Local\Temp\minidgm_vweviqob
+        status=completed  score=0/5 (0%)
+            fail: test_empty - AssertionError: assert 'a3b2c1' == ''
+        
+        + a3b2c1
+            fail: test_one_char - AssertionError: assert 'a3b2c1' == 'a1'
+        
+        - a1
+        + a3b2c1
+            fail: test_all_same - AssertionError: assert 'a3b2c1' == 'z5'
+        
+        - z5
+        + a3b2c1
+            fail: test_long_run_double_digits - AssertionError: assert 'a3b2c1' == 'a12'
+        
+        - a12
+        + a3b2
+            fail: test_mixed - AssertionError: assert 'a3b2c1' == 'a2b3c4'
+        
+        - a2b3c4
+        
+        INFINITE vs PUBLIC tests (expect timeout):
+        ..\AppData\Local\Temp\minidgm_shhz49bf
+        status=timeout  score=0/0  18.6s
+"""
